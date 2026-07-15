@@ -127,3 +127,110 @@ def denormalize(
         value * (max_val - min_val)
         + min_val
     )
+
+
+def correlation_matrix(data, numeric_attrs):
+
+    n = len(numeric_attrs)
+
+    m = len(data)
+
+    means = {}
+
+    for attr in numeric_attrs:
+
+        values = [
+            float(row[attr])
+            for row in data
+        ]
+
+        means[attr] = sum(values) / m
+
+    stds = {}
+
+    for attr in numeric_attrs:
+
+        values = [
+            float(row[attr])
+            for row in data
+        ]
+
+        variance = sum(
+            (v - means[attr]) ** 2
+            for v in values
+        ) / (m - 1)
+
+        stds[attr] = variance ** 0.5
+
+    matrix = []
+
+    for i in range(n):
+
+        row = []
+
+        for j in range(n):
+
+            if stds[numeric_attrs[i]] == 0 or \
+               stds[numeric_attrs[j]] == 0:
+
+                row.append(0.0)
+
+                continue
+
+            cov = sum(
+                (
+                    float(row[numeric_attrs[i]])
+                    - means[numeric_attrs[i]]
+                )
+                * (
+                    float(row[numeric_attrs[j]])
+                    - means[numeric_attrs[j]]
+                )
+                for row in data
+            ) / (m - 1)
+
+            r = (
+                cov
+                / (
+                    stds[numeric_attrs[i]]
+                    * stds[numeric_attrs[j]]
+                )
+            )
+
+            row.append(round(r, 4))
+
+        matrix.append(row)
+
+    return matrix
+
+
+def find_correlated_pairs(
+    matrix,
+    numeric_attrs,
+    threshold=0.8,
+):
+
+    pairs = []
+
+    n = len(numeric_attrs)
+
+    for i in range(n):
+
+        for j in range(i + 1, n):
+
+            r = matrix[i][j]
+
+            if abs(r) >= threshold:
+
+                pairs.append(
+                    (numeric_attrs[i],
+                     numeric_attrs[j],
+                     round(r, 4))
+                )
+
+    pairs.sort(
+        key=lambda x: abs(x[2]),
+        reverse=True,
+    )
+
+    return pairs
