@@ -1,0 +1,6 @@
+pytest
+rich
+xlrd
+seaborn
+matplotlib
+networkx
