@@ -1,10 +1,24 @@
+"""
+Modulo de utilidades para carga y preprocesamiento de datos.
+
+Funciones para:
+- Cargar datos desde archivos CSV, TXT (tab-separated) y XLS
+- Normalizar atributos numericos al rango [0, 1]
+- Calcular matrices de correlacion entre atributos
+"""
+
 import csv
 
 import xlrd
 
 
 def load_csv(path):
+    """
+    Carga datos desde un archivo CSV usando DictReader.
 
+    Cada fila se convierte en un diccionario donde las claves
+    son los nombres de las columnas (header).
+    """
     data = []
 
     with open(
@@ -22,7 +36,13 @@ def load_csv(path):
 
 
 def load_txt(path, separator='\t'):
+    """
+    Carga datos desde un archivo de texto separado por tabulaciones.
 
+    La primera linea contiene los headers (nombres de columnas).
+    Las lineas siguientes contienen los valores separados por el
+    caracter de separacion (por defecto tabulacion).
+    """
     data = []
 
     with open(
@@ -33,6 +53,7 @@ def load_txt(path, separator='\t'):
 
         lines = file.readlines()
 
+        # La primera linea son los nombres de las columnas
         headers = (
             lines[0].strip().split(separator)
         )
@@ -41,6 +62,7 @@ def load_txt(path, separator='\t'):
 
             values = line.strip().split(separator)
 
+            # Combina headers con valores en un diccionario
             row = dict(
                 zip(headers, values)
             )
@@ -51,10 +73,17 @@ def load_txt(path, separator='\t'):
 
 
 def load_xls(path):
+    """
+    Carga datos desde un archivo Excel (.xls) usando xlrd.
 
+    Lee la primera hoja del workbook, usa la primera fila como headers
+    y convierte cada fila restante en un diccionario.
+    """
+    # Abre el workbook Excel
     wb = xlrd.open_workbook(path)
     sh = wb.sheet_by_index(0)
 
+    # Extrae los nombres de las columnas de la primera fila
     headers = [
         sh.cell_value(0, c)
         for c in range(sh.ncols)
@@ -62,6 +91,7 @@ def load_xls(path):
 
     data = []
 
+    # Itera sobre cada fila (desde la segunda)
     for r in range(1, sh.nrows):
 
         row = {}
@@ -78,7 +108,18 @@ def load_xls(path):
 
 
 def normalize(data, numeric_attrs):
+    """
+    Normaliza los atributos numericos al rango [0, 1].
 
+    Usa la formula: (valor - min) / (max - min)
+    Esto es esencial para el SOM porque las distancias
+    se calculan en el espacio de atributos, y los atributos
+    deben tener la misma escala para no dominar la distancia.
+
+    Returns:
+        Tupla de (datos_normalizados, minimos, maximos)
+    """
+    # Encuentra min y max de cada atributo numerico
     min_vals = {}
     max_vals = {}
 
@@ -104,9 +145,11 @@ def normalize(data, numeric_attrs):
             min_v = min_vals[attr]
             max_v = max_vals[attr]
 
+            # Si todos los valores son iguales, normaliza a 0
             if max_v - min_v == 0:
                 new_row[attr] = 0.0
             else:
+                # Aplica la normalizacion min-max
                 new_row[attr] = (
                     (val - min_v)
                     / (max_v - min_v)
@@ -122,7 +165,12 @@ def denormalize(
     min_val,
     max_val,
 ):
+    """
+    Invierte la normalizacion para un valor individual.
 
+    Aplica: valor_original = valor_normalizado * (max - min) + min
+    Util para convertir valores del SOM de vuelta a la escala original.
+    """
     return (
         value * (max_val - min_val)
         + min_val
@@ -130,11 +178,22 @@ def denormalize(
 
 
 def correlation_matrix(data, numeric_attrs):
+    """
+    Calcula la matriz de correlacion de Pearson entre atributos numericos.
 
+    La correlacion mide la relacion lineal entre dos variables:
+    - +1: correlacion positiva perfecta
+    -  0: sin relacion lineal
+    - -1: correlacion negativa perfecta
+
+    Se usa para identificar atributos redundantes que podrian
+    eliminarse sin perder informacion.
+    """
     n = len(numeric_attrs)
 
     m = len(data)
 
+    # Calcula la media de cada atributo
     means = {}
 
     for attr in numeric_attrs:
@@ -146,6 +205,7 @@ def correlation_matrix(data, numeric_attrs):
 
         means[attr] = sum(values) / m
 
+    # Calcula la desviacion estandar de cada atributo
     stds = {}
 
     for attr in numeric_attrs:
@@ -155,6 +215,7 @@ def correlation_matrix(data, numeric_attrs):
             for row in data
         ]
 
+        # Varianza muestral (division por n-1)
         variance = sum(
             (v - means[attr]) ** 2
             for v in values
@@ -162,6 +223,7 @@ def correlation_matrix(data, numeric_attrs):
 
         stds[attr] = variance ** 0.5
 
+    # Construye la matriz de correlacion
     matrix = []
 
     for i in range(n):
@@ -170,6 +232,7 @@ def correlation_matrix(data, numeric_attrs):
 
         for j in range(n):
 
+            # Si la desviacion es cero, la correlacion es 0
             if stds[numeric_attrs[i]] == 0 or \
                stds[numeric_attrs[j]] == 0:
 
@@ -177,6 +240,7 @@ def correlation_matrix(data, numeric_attrs):
 
                 continue
 
+            # Calcula la covarianza entre los atributos i y j
             cov = sum(
                 (
                     float(row[numeric_attrs[i]])
@@ -189,6 +253,7 @@ def correlation_matrix(data, numeric_attrs):
                 for row in data
             ) / (m - 1)
 
+            # Correlacion de Pearson = covarianza / (std_i * std_j)
             r = (
                 cov
                 / (
@@ -209,7 +274,18 @@ def find_correlated_pairs(
     numeric_attrs,
     threshold=0.8,
 ):
+    """
+    Encuentra pares de atributos altamente correlacionados.
 
+    Recorre la matriz de correlacion y retorna los pares
+    cuya correlacion absoluta supera el umbral (default: 0.8).
+    Los pares se ordenan por correlacion absoluta descendente.
+
+    Util para:
+    - Detectar atributos redundantes
+    - Seleccionar特征 relevantes
+    - Reducir dimensionalidad
+    """
     pairs = []
 
     n = len(numeric_attrs)
@@ -220,6 +296,7 @@ def find_correlated_pairs(
 
             r = matrix[i][j]
 
+            # Solo incluye pares con correlacion fuerte
             if abs(r) >= threshold:
 
                 pairs.append(
@@ -228,6 +305,7 @@ def find_correlated_pairs(
                      round(r, 4))
                 )
 
+    # Ordena por correlacion absoluta (mayor primero)
     pairs.sort(
         key=lambda x: abs(x[2]),
         reverse=True,

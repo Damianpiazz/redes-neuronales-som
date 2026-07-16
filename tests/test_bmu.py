@@ -1,8 +1,12 @@
+"""
+Tests para la funcion de distancia euclidiana y la busqueda del BMU.
+"""
 from src.distance import euclidean
 from src.neuron import Neuron
 
 
 def test_euclidean_same_point():
+    """Verifica que la distancia entre dos puntos identicos es cero."""
 
     a = [1.0, 2.0, 3.0]
     b = [1.0, 2.0, 3.0]
@@ -13,6 +17,7 @@ def test_euclidean_same_point():
 
 
 def test_euclidean_basic():
+    """Verifica la distancia euclidiana basica (triangulo 3-4-5)."""
 
     a = [0.0, 0.0]
     b = [3.0, 4.0]
@@ -23,6 +28,7 @@ def test_euclidean_basic():
 
 
 def test_bmu_finds_closest():
+    """Verifica que el BMU se encuentra la neurona mas cercana al patron."""
 
     n1 = Neuron(3, 0, 0)
     n1.weights = [1.0, 1.0, 1.0]

@@ -1,7 +1,11 @@
+"""
+Tests para los metricas de calidad del SOM: error de cuantizacion y topografico.
+"""
 from src.som import SOM
 
 
 def test_quantization_error_positive():
+    """Verifica que el error de cuantizacion es no negativo."""
 
     data = [
         [0.0, 0.0],
@@ -24,6 +28,7 @@ def test_quantization_error_positive():
 
 
 def test_quantization_error_small_single():
+    """Verifica que un SOM con una neurona y un patron tiene error casi cero."""
 
     data = [
         [0.0, 0.0],
@@ -44,6 +49,7 @@ def test_quantization_error_small_single():
 
 
 def test_topographic_error_range():
+    """Verifica que el error topografico esta en el rango [0, 1]."""
 
     data = [
         [0.0, 0.0],
